@@ -1,15 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'dart:async';
 import 'login_screen.dart';
 import 'config.dart';
 import 'ticket_details_screen.dart';
-import 'utils/date_utils.dart'; // Import the utility file
 import 'dio_client.dart';
-import 'utils/author_utils.dart'; // Import the author_util file
+import 'utils/logger.dart';
 import 'utils/common_utils.dart'; // Import the shared modal function
 import 'widgets/custom_dropdown.dart';
 import 'widgets/ticket_card.dart';
@@ -22,8 +20,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   late final Dio _dio;
+  double _fabScale = 1.0;
+  bool _isSubmitting = false;
   late TabController _tabController;
   List<dynamic> _tickets = [];
   bool _isLoading = true;
@@ -98,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _nextStartKey = response.data['next_start_key']; // Update start key
         _isLoading = false;
         _isFetchingMore = false;
-        print("Ticket size ${_tickets.length}"); // Debugging line
+        appLogger.d("Fetched ${_tickets.length} tickets (loadMore: $loadMore)");
       
       });
     } catch (e) {
@@ -117,12 +116,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _logout() async {
-    await _storage.deleteAll();
-    _dio.interceptors.clear(); // Clear interceptors to avoid token issues
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
     );
+
+    if (shouldLogout == true) {
+      await DioClient.logout();
+      _dio.interceptors.clear();
+      appLogger.i('User logged out');
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -148,6 +168,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       facilityList: facilityList,
       categoryList: categoryList,
       onSave: (title, description, facility, category) async {
+        setState(() {
+          _isSubmitting = true;
+        });
         try {
           final response = await _dio.post(
             '$API_HOST/tickets/create',
@@ -171,6 +194,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to create ticket')),
           );
+        } finally {
+          setState(() {
+            _isSubmitting = false;
+          });
         }
       },
     );
@@ -241,69 +268,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0A0F24), Color(0xFF1B2A49)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth > 600) {
-                    // Landscape: All components in one line
-                    return Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: _buildSearchBar(),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 1,
-                          child: CustomDropdown(
-                            value: _categoryFilter,
-                            hint: 'Category',
-                            items: ['All', ...categoryList],
-                            onChanged: (value) {
-                              setState(() {
-                                _categoryFilter = value == 'All' ? null : value;
-                                _fetchTickets();
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          flex: 1,
-                          child: CustomDropdown(
-                            value: _facilityFilter,
-                            hint: 'Facility',
-                            items: ['All', ...facilityList],
-                            onChanged: (value) {
-                              setState(() {
-                                _facilityFilter = value == 'All' ? null : value;
-                                _fetchTickets();
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // Portrait: Components stacked vertically
-                    return Column(
-                      children: [
-                        _buildSearchBar(),
-                        const SizedBox(height: 10),
-                        Row(
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0A0F24), Color(0xFF1B2A49)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (constraints.maxWidth > 600) {
+                        // Landscape: All components in one line
+                        return Row(
                           children: [
                             Expanded(
+                              flex: 2,
+                              child: _buildSearchBar(),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 1,
                               child: CustomDropdown(
                                 value: _categoryFilter,
                                 hint: 'Category',
@@ -316,8 +307,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 },
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
                             Expanded(
+                              flex: 1,
                               child: CustomDropdown(
                                 value: _facilityFilter,
                                 hint: 'Facility',
@@ -331,32 +323,102 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                             ),
                           ],
-                        ),
-                      ],
-                    );
-                  }
-                },
-              ),
+                        );
+                      } else {
+                        // Portrait: Components stacked vertically
+                        return Column(
+                          children: [
+                            _buildSearchBar(),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: CustomDropdown(
+                                    value: _categoryFilter,
+                                    hint: 'Category',
+                                    items: ['All', ...categoryList],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _categoryFilter = value == 'All' ? null : value;
+                                        _fetchTickets();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: CustomDropdown(
+                                    value: _facilityFilter,
+                                    hint: 'Facility',
+                                    items: ['All', ...facilityList],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _facilityFilter = value == 'All' ? null : value;
+                                        _fetchTickets();
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      }
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildRefreshableTicketList(), // Open Tickets
+                      _buildRefreshableTicketList(), // Closed Tickets
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildRefreshableTicketList(), // Open Tickets
-                  _buildRefreshableTicketList(), // Closed Tickets
-                ],
-              ),
+          ),
+          if (_isSubmitting)
+            ModalBarrier(
+              dismissible: false,
+              color: Colors.black.withOpacity(0.3),
             ),
-          ],
-        ),
+          if (_isSubmitting)
+            const Center(
+              child: CircularProgressIndicator(),
+            ),
+        ],
       ),
       floatingActionButton: Container(
         margin: const EdgeInsets.only(bottom: 10), // Add some margin for better positioning
-        child: FloatingActionButton(
-          onPressed: _showCreateTicketDialog,
-          backgroundColor: Colors.tealAccent,
-          foregroundColor: Colors.black,
-          child: const Icon(Icons.note_add, size: 28), // Changed to a ticket-related icon
+        child: GestureDetector(
+          onTapDown: (_) {
+            setState(() {
+              _fabScale = 0.9;
+            });
+          },
+          onTapUp: (_) {
+            setState(() {
+              _fabScale = 1.0;
+            });
+            _showCreateTicketDialog();
+          },
+          onTapCancel: () {
+            setState(() {
+              _fabScale = 1.0;
+            });
+          },
+          child: AnimatedScale(
+            scale: _fabScale,
+            duration: const Duration(milliseconds: 100),
+            child: FloatingActionButton(
+              onPressed: _showCreateTicketDialog,
+              backgroundColor: Colors.tealAccent,
+              foregroundColor: Colors.black,
+              child: const Icon(Icons.note_add, size: 28), // Changed to a ticket-related icon
+            ),
+          ),
         ),
       ),
     );
@@ -375,36 +437,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         filled: true,
         fillColor: Colors.white,
       ),
-    );
-  }
-
-  Widget _buildDropdown({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value ?? 'All',
-      decoration: InputDecoration(
-        hintText: hint,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-      items: items
-          .map((item) => DropdownMenuItem(
-                value: item,
-                child: Text(
-                  item,
-                  style: const TextStyle(color: Colors.black),
-                ),
-              ))
-          .toList(),
-      onChanged: onChanged,
     );
   }
 
@@ -484,23 +516,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
       );
     }
+    final bool noMoreData = !_isFetchingMore && _nextStartKey == null && _tickets.isNotEmpty;
+
     return ListView.builder(
-          controller: localScrollController, // Use the local ScrollController
-          padding: const EdgeInsets.all(12),
-          itemCount: _tickets.length + (_isFetchingMore ? 1 : 0),
-          // Use a key for each item to help Flutter optimize rebuilds
-          key: PageStorageKey('ticket_list_${_tabController.index}'),
-          // Use addAutomaticKeepAlives to maintain state when scrolling
-          addAutomaticKeepAlives: true,
-          // Use addRepaintBoundaries to optimize painting
-          addRepaintBoundaries: true,
-          itemBuilder: (context, index) {
-            if (index >= _tickets.length) {
-              return const Center(child: CircularProgressIndicator()); // Show loading indicator at the end
-            }
-            final ticket = _tickets[index];
-            return TicketCard(
-              key: ValueKey('ticket_${ticket['ticket_id']}'),
+      controller: localScrollController, // Use the local ScrollController
+      padding: const EdgeInsets.all(12),
+      itemCount: _tickets.length + (_isFetchingMore ? 1 : 0) + (noMoreData ? 1 : 0),
+      key: PageStorageKey('ticket_list_${_tabController.index}'),
+      addAutomaticKeepAlives: true,
+      addRepaintBoundaries: true,
+      itemBuilder: (context, index) {
+        if (index < _tickets.length) {
+          final ticket = _tickets[index];
+          return TweenAnimationBuilder<double>(
+            key: ValueKey('ticket_${ticket['ticket_id']}'),
+            tween: Tween<double>(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 500),
+            builder: (context, opacity, child) {
+              return Opacity(
+                opacity: opacity,
+                child: child,
+              );
+            },
+            child: TicketCard(
               ticket: ticket,
               onTap: () {
                 Navigator.push(
@@ -512,8 +550,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
                 );
               },
-            );
-          },
-        );
+            ),
+          );
+        } else if (_isFetchingMore && index == _tickets.length) {
+          return const Center(child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: CircularProgressIndicator(),
+          ));
+        } else if (noMoreData && index == _tickets.length + (_isFetchingMore ? 1 : 0)) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Text(
+                'No more tickets to load',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            ),
+          );
+        } else {
+          return const SizedBox.shrink();
+        }
+      },
+    );
   }
 }

@@ -7,6 +7,7 @@ import 'utils/common_utils.dart';
 import 'package:help_desk/config.dart';
 import 'dio_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'utils/logger.dart';
 
 class TicketDetailsScreen extends StatefulWidget {
   final String ticketId;
@@ -19,6 +20,7 @@ class TicketDetailsScreen extends StatefulWidget {
 
 class _TicketDetailsScreenState extends State<TicketDetailsScreen> with AutomaticKeepAliveClientMixin {
   late final Dio _dio;
+  bool _isSubmitting = false;
   Map<String, dynamic>? _ticketDetails;
   bool _isLoading = true;
   String? _errorMessage;
@@ -41,6 +43,7 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
   @override
   void initState() {
     super.initState();
+    appLogger.i('TicketDetailsScreen initState');
     _initializeDio().then((_) {
       _fetchCurrentUserIdAndRole();
       _fetchTicketDetails();
@@ -120,6 +123,7 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
         });
       }
     } catch (e) {
+      appLogger.e('Failed to fetch ticket details: $e');
       if (mounted) {
         setState(() {
           _errorMessage = 'Failed to fetch ticket details. Please try again.';
@@ -154,6 +158,10 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
       });
     }
 
+    setState(() {
+      _isSubmitting = true;
+    });
+
     try {
       final data = {
         'reply_text': replyText,
@@ -171,9 +179,16 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
 
       await _fetchTicketDetails();
     } catch (e) {
+      appLogger.e('Failed to submit reply: $e');
       if (mounted) {
         setState(() {
           _errorMessage = 'Failed to submit reply. Please try again.';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
         });
       }
     }
@@ -186,6 +201,10 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
       );
       return;
     }
+
+    setState(() {
+      _isSubmitting = true;
+    });
 
     try {
       final data = {
@@ -214,10 +233,20 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An error occurred. Please try again.')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
   Future<void> _markAsSolution(String replyId) async {
+    setState(() {
+      _isSubmitting = true;
+    });
+
     try {
       final data = {'reply_id': replyId};
 
@@ -237,10 +266,16 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
         );
       }
     } catch (e) {
-      print(e);
+      appLogger.e('Error marking reply as solution: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An error occurred. Please try again.')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -269,6 +304,10 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
   }
 
   Future<void> _reopenTicket() async {
+    setState(() {
+      _isSubmitting = true;
+    });
+
     try {
       final data = {'reply_id': null};
 
@@ -288,10 +327,16 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
         );
       }
     } catch (e) {
-      print(e);
+      appLogger.e('Error reopening ticket: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An error occurred. Please try again.')),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -475,155 +520,168 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
           ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E1E2C), Color(0xFF232946)], // Previous gradient colors
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null
-                ? Center(
-                    child: Text(
-                      _errorMessage!,
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 16),
-                    ),
-                  )
-                : Column(
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: _ticketDetails == null
-                                  ? [const Center(child: Text('No ticket details available', style: TextStyle(color: Colors.white)))]
-                                  : [
-                                      Text(
-                                        _ticketDetails?['title'] ?? 'No Title',
-                                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
-                                        decoration: BoxDecoration(
-                                          color: Colors.tealAccent.withOpacity(0.2),
-                                          borderRadius: BorderRadius.circular(12.0),
-                                          border: Border.all(color: Colors.tealAccent),
-                                        ),
-                                        child: Text(
-                                          'Ticket #: ${_ticketDetails?['ticket_number'] ?? 'N/A'}', // Highlight ticket number
-                                          style: const TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _ticketDetails?['author_display'] ?? 'Unknown',
-                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        formatTimestamp(_ticketDetails?['created_at']),
-                                        style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.white70),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      if (_ticketDetails?['updated_at'] != null)
-                                        Text(
-                                          'Last updated by: ${_ticketDetails?['updated_by_name'] ?? 'Unknown'} on ${formatTimestamp(_ticketDetails?['updated_at'])}',
-                                          style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.white70),
-                                        ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        _ticketDetails?['description'] ?? 'No Description',
-                                        style: const TextStyle(fontSize: 16, color: Colors.white70, height: 1.5),
-                                      ),
-                                      const SizedBox(height: 24),
-                                      Wrap(
-                                        spacing: 12.0,
-                                        runSpacing: 8.0,
-                                        children: [
-                                          _buildBadge('Category', _ticketDetails?['category'] ?? 'N/A', Colors.blue),
-                                          _buildBadge('Facility', _ticketDetails?['facility'] ?? 'N/A', Colors.orange),
-                                          _buildBadge(
-                                            'Status',
-                                            _ticketDetails?['status'] == 'open' ? 'ACTIVE' : 'CLOSED',
-                                            _ticketDetails?['status'] == 'open' ? Colors.green : Colors.red,
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF1E1E2C), Color(0xFF232946)], // Previous gradient colors
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                    ? Center(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.redAccent, fontSize: 16),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: _ticketDetails == null
+                                      ? [const Center(child: Text('No ticket details available', style: TextStyle(color: Colors.white)))]
+                                      : [
+                                          Text(
+                                            _ticketDetails?['title'] ?? 'No Title',
+                                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
                                           ),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+                                            decoration: BoxDecoration(
+                                              color: Colors.tealAccent.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(12.0),
+                                              border: Border.all(color: Colors.tealAccent),
+                                            ),
+                                            child: Text(
+                                              'Ticket #: ${_ticketDetails?['ticket_number'] ?? 'N/A'}', // Highlight ticket number
+                                              style: const TextStyle(color: Colors.tealAccent, fontSize: 14, fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _ticketDetails?['author_display'] ?? 'Unknown',
+                                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            formatTimestamp(_ticketDetails?['created_at']),
+                                            style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.white70),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          if (_ticketDetails?['updated_at'] != null)
+                                            Text(
+                                              'Last updated by: ${_ticketDetails?['updated_by_name'] ?? 'Unknown'} on ${formatTimestamp(_ticketDetails?['updated_at'])}',
+                                              style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.white70),
+                                            ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            _ticketDetails?['description'] ?? 'No Description',
+                                            style: const TextStyle(fontSize: 16, color: Colors.white70, height: 1.5),
+                                          ),
+                                          const SizedBox(height: 24),
+                                          Wrap(
+                                            spacing: 12.0,
+                                            runSpacing: 8.0,
+                                            children: [
+                                              _buildBadge('Category', _ticketDetails?['category'] ?? 'N/A', Colors.blue),
+                                              _buildBadge('Facility', _ticketDetails?['facility'] ?? 'N/A', Colors.orange),
+                                              _buildBadge(
+                                                'Status',
+                                                _ticketDetails?['status'] == 'open' ? 'ACTIVE' : 'CLOSED',
+                                                _ticketDetails?['status'] == 'open' ? Colors.green : Colors.red,
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 24),
+                                          const Text(
+                                            'Replies:',
+                                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          _buildThreadedReplies(_replies),
                                         ],
-                                      ),
-                                      const SizedBox(height: 24),
-                                      const Text(
-                                        'Replies:',
-                                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      _buildThreadedReplies(_replies),
-                                    ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_replyId != null)
-                        Container(
-                          padding: const EdgeInsets.all(8.0),
-                          color: Colors.blueAccent.withOpacity(0.2),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Replying to: ${_replies.firstWhere((reply) => reply['replyId'] == _replyId)['message']}',
-                                  style: const TextStyle(color: Colors.blueAccent, fontSize: 14),
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.blueAccent),
-                                onPressed: () {
-                                  setState(() {
-                                    _replyId = null;
-                                  });
-                                },
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      Container(
-                        padding: const EdgeInsets.all(12.0),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF1B2A49),
-                          border: Border(top: BorderSide(color: Colors.white24)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _replyController,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  hintText: _replyId == null ? 'Write a reply...' : 'Replying to a reply...',
-                                  hintStyle: const TextStyle(color: Colors.white54),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    borderSide: const BorderSide(color: Colors.white24),
+                          if (_replyId != null)
+                            Container(
+                              padding: const EdgeInsets.all(8.0),
+                              color: Colors.blueAccent.withOpacity(0.2),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Replying to: ${_replies.firstWhere((reply) => reply['replyId'] == _replyId)['message']}',
+                                      style: const TextStyle(color: Colors.blueAccent, fontSize: 14),
+                                    ),
                                   ),
-                                  filled: true,
-                                  fillColor: const Color(0xFF0A0F24),
-                                ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close, color: Colors.blueAccent),
+                                    onPressed: () {
+                                      setState(() {
+                                        _replyId = null;
+                                      });
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              icon: const Icon(Icons.send, color: Colors.blueAccent),
-                              onPressed: _submitReply,
+                          Container(
+                            padding: const EdgeInsets.all(12.0),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1B2A49),
+                              border: Border(top: BorderSide(color: Colors.white24)),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _replyController,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: InputDecoration(
+                                      hintText: _replyId == null ? 'Write a reply...' : 'Replying to a reply...',
+                                      hintStyle: const TextStyle(color: Colors.white54),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8.0),
+                                        borderSide: const BorderSide(color: Colors.white24),
+                                      ),
+                                      filled: true,
+                                      fillColor: const Color(0xFF0A0F24),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.send, color: Colors.blueAccent),
+                                  onPressed: _submitReply,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+          ),
+          if (_isSubmitting)
+            ModalBarrier(
+              dismissible: false,
+              color: Colors.black.withOpacity(0.3),
+            ),
+          if (_isSubmitting)
+            const Center(
+              child: CircularProgressIndicator(),
+            ),
+        ],
       ),
     );
   }

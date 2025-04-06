@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/custom_dropdown.dart';
 
 Future<void> showTicketModal({
   required BuildContext context,
@@ -84,22 +85,10 @@ Future<void> showTicketModal({
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
+                  CustomDropdown(
                     value: selectedFacility,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    items: facilityList
-                        .map((facility) => DropdownMenuItem(
-                              value: facility,
-                              child: Text(facility, style: const TextStyle(fontSize: 16)),
-                            ))
-                        .toList(),
+                    hint: 'Select Facility',
+                    items: facilityList,
                     onChanged: (value) {
                       selectedFacility = value;
                     },
@@ -110,22 +99,10 @@ Future<void> showTicketModal({
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white),
                   ),
                   const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
+                  CustomDropdown(
                     value: selectedCategory,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    items: categoryList
-                        .map((category) => DropdownMenuItem(
-                              value: category,
-                              child: Text(category, style: const TextStyle(fontSize: 16)),
-                            ))
-                        .toList(),
+                    hint: 'Select Category',
+                    items: categoryList,
                     onChanged: (value) {
                       selectedCategory = value;
                     },

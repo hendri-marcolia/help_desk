@@ -3,11 +3,14 @@ import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:help_desk/config.dart';
-import 'login_screen.dart';
+import 'package:logger/logger.dart';
 
 class DioClient {
+  static void Function()? onForceLogout;
+
   static final Dio _dio = Dio();
   static final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  static final Logger _logger = Logger();
   static final CacheOptions _cacheOptions = CacheOptions(
     store: MemCacheStore(),
     policy: CachePolicy.refreshForceCache,
@@ -26,9 +29,12 @@ class DioClient {
 
     // Read the auth_token from storage
     final authToken = await _storage.read(key: 'auth_token');
+
+    // Always set Content-Type header
+    _dio.options.headers['Content-Type'] = 'application/json';
+
     if (authToken != null && authToken.isNotEmpty) {
       _dio.options.headers['Authorization'] = 'Bearer $authToken';
-      _dio.options.headers['Content-Type'] = 'application/json';
     }
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -59,10 +65,17 @@ class DioClient {
               );
               return handler.resolve(response);
             } catch (_) {
-              await _logout(context); // Logout if refresh fails
+              _logger.e('Refresh token failed. Logging out user.');
+              await DioClient.logout(); // Logout if refresh fails
+              if (DioClient.onForceLogout != null) {
+                DioClient.onForceLogout!();
+              }
             }
           } else {
-            await _logout(context); // Logout if no refresh token exists
+            await DioClient.logout(); // Logout if no refresh token exists
+            if (DioClient.onForceLogout != null) {
+              DioClient.onForceLogout!();
+            }
           }
         }
         return handler.next(error); // Pass the error if not handled
@@ -71,11 +84,7 @@ class DioClient {
     return _dio;
   }
 
-  static Future<void> _logout(BuildContext context) async {
+  static Future<void> logout() async {
     await _storage.deleteAll();
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
   }
 }

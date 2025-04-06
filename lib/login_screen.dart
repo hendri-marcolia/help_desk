@@ -7,6 +7,7 @@ import 'package:help_desk/utils/author_utils.dart';
 import 'config.dart';
 import 'home_screen.dart';
 import 'dio_client.dart';
+import 'utils/logger.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    appLogger.i('LoginScreen initState');
     _initializeDio();
     _checkAuthToken();
     _loadStoredUsername();
@@ -140,6 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
     }
     setState(() => _isLoading = false);
+    appLogger.i('Login attempt completed');
   }
 
   Future<void> _sendFcmTokenInBackground() async {
