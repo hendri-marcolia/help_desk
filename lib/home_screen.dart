@@ -11,6 +11,8 @@ import 'utils/date_utils.dart'; // Import the utility file
 import 'dio_client.dart';
 import 'utils/author_utils.dart'; // Import the author_util file
 import 'utils/common_utils.dart'; // Import the shared modal function
+import 'widgets/custom_dropdown.dart';
+import 'widgets/ticket_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -264,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 1,
-                          child: _buildDropdown(
+                          child: CustomDropdown(
                             value: _categoryFilter,
                             hint: 'Category',
                             items: ['All', ...categoryList],
@@ -279,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         const SizedBox(width: 8),
                         Expanded(
                           flex: 1,
-                          child: _buildDropdown(
+                          child: CustomDropdown(
                             value: _facilityFilter,
                             hint: 'Facility',
                             items: ['All', ...facilityList],
@@ -302,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         Row(
                           children: [
                             Expanded(
-                              child: _buildDropdown(
+                              child: CustomDropdown(
                                 value: _categoryFilter,
                                 hint: 'Category',
                                 items: ['All', ...categoryList],
@@ -316,7 +318,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: _buildDropdown(
+                              child: CustomDropdown(
                                 value: _facilityFilter,
                                 hint: 'Facility',
                                 items: ['All', ...facilityList],
@@ -497,8 +499,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               return const Center(child: CircularProgressIndicator()); // Show loading indicator at the end
             }
             final ticket = _tickets[index];
-            // Use a unique key for each ticket item
-            return TicketListItem(
+            return TicketCard(
               key: ValueKey('ticket_${ticket['ticket_id']}'),
               ticket: ticket,
               onTap: () {
@@ -515,158 +516,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           },
         );
   }
-}
-
-// Separate stateful widget for ticket items to optimize rebuilds
-class TicketListItem extends StatefulWidget {
-  final Map<String, dynamic> ticket;
-  final VoidCallback onTap;
-
-  const TicketListItem({
-    Key? key,
-    required this.ticket,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  _TicketListItemState createState() => _TicketListItemState();
-}
-
-class _TicketListItemState extends State<TicketListItem> with AutomaticKeepAliveClientMixin {
-  String? _authorName;
-  bool _isLoadingAuthor = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAuthorName();
-  }
-
-  Future<void> _loadAuthorName() async {
-    try {
-      final name = await AuthorUtils.getAuthorName(widget.ticket);
-      if (mounted) {
-        setState(() {
-          _authorName = name;
-          _isLoadingAuthor = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _authorName = 'Error';
-          _isLoadingAuthor = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
-    
-    final ticket = widget.ticket;
-    
-    return Card(
-      color: const Color(0xFF162447),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 5,
-      child: ListTile(
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                ticket['title'],
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.tealAccent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                'Ticket #: ${ticket['ticket_number']}',
-                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              ticket['description'],
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Created: ${formatTimestamp(ticket['created_at'])}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            // Use cached author name instead of FutureBuilder
-            Text(
-              'Author: ${_isLoadingAuthor ? 'Loading...' : _authorName}',
-              style: TextStyle(
-                color: _isLoadingAuthor ? Colors.white54 : 
-                       (_authorName == 'Error' ? Colors.redAccent : Colors.white54),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                if (ticket['category'] != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    margin: const EdgeInsets.only(right: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.tealAccent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      ticket['category'],
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                if (ticket['facility'] != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    margin: const EdgeInsets.only(right: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.lightBlueAccent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      ticket['facility'],
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                  ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: ticket['status'] == 'open' ? Colors.orangeAccent : Colors.redAccent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    ticket['status'] == 'open' ? 'ACTIVE' : 'CLOSED',
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        onTap: widget.onTap,
-      ),
-    );
-  }
-  
-  @override
-  bool get wantKeepAlive => true; // Keep this widget alive when it's scrolled off screen
 }

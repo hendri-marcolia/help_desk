@@ -50,10 +50,22 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Help Desk App',
       theme: AppTheme.lightTheme,
-      home: const AuthChecker(), // Use AuthChecker to determine the initial screen
+      home: const AuthChecker(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/ticketDetails') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final ticketId = args?['ticketId'] as String?;
+          if (ticketId != null) {
+            return MaterialPageRoute(
+              builder: (context) => TicketDetailsScreen(ticketId: ticketId),
+            );
+          }
+        }
+        return null;
       },
     );
   }
@@ -178,12 +190,9 @@ class _AuthCheckerState extends State<AuthChecker> {
     if (message.data['event'] == 'ticket_update') {
       final ticketId = message.data['ticket_id'];
       if (ticketId != null && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => TicketDetailsScreen(
-              ticketId: ticketId,
-            ),
-          ),
+        Navigator.of(context).pushNamed(
+          '/ticketDetails',
+          arguments: {'ticketId': ticketId},
         );
       }
     }
@@ -258,12 +267,9 @@ class _AuthCheckerState extends State<AuthChecker> {
       if (data['event'] == 'ticket_update') {
       final ticketId = data['ticket_id'];
       if (ticketId != null && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => TicketDetailsScreen(
-              ticketId: ticketId,
-            ),
-          ),
+        Navigator.of(context).pushNamed(
+          '/ticketDetails',
+          arguments: {'ticketId': ticketId},
         );
       }
       }
