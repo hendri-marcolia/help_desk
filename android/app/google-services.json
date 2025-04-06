@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "94452679667",
+    "project_id": "helpdeskapp-f73d2",
+    "storage_bucket": "helpdeskapp-f73d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:94452679667:android:158d5247162a8315a3c886",
+        "android_client_info": {
+          "package_name": "com.shinobidev.help_desk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDd2UdK_jzhO04_LdLBIUpz8rzwlF0ZTo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

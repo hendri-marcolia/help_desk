@@ -1,0 +1,31 @@
+const String API_HOST = "https://YOUR_API_HOST.com/api/v1";
+const List<String> facilityList = [
+  "Nursing Home",
+  "Assisted Living",
+  "Independent Living",
+  "Memory Care",
+  "Skilled Nursing Facility",
+  "Continuing Care Retirement Community",
+  "Adult Day Care",
+  "Respite Care",
+  "Palliative Care",
+  "Hospice Care",
+  "Home Health Care",
+  "Rehabilitation Facility",
+  "Long-Term Acute Care Hospital",
+  "Subacute Rehabilitation Facility",
+];
+const List<String> categoryList = [
+  "General",
+  "Urgent",
+  "Emergency",
+  "Routine",
+  "Follow-up",
+  "Preventive",
+  "Diagnostic",
+  "Therapeutic",
+  "Surgical",
+  "Rehabilitative",
+  "Palliative",
+  "End-of-life",
+];
