@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:async';
 import 'login_screen.dart';
 import 'config.dart';
@@ -38,6 +39,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final String _sortOrder = "desc";
   final int _limit = 20;
 
+  String? _currentUsername;
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +48,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _initializeDio().then((_) {
       _fetchTickets(); // Call fetchTickets after Dio is initialized
     });
+    _loadCurrentUsername();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _loadCurrentUsername() async {
+    final storage = FlutterSecureStorage();
+    final username = await storage.read(key: 'username');
+    if (mounted) {
+      setState(() {
+        _currentUsername = username;
+      });
+    }
   }
 
   Future<void> _initializeDio() async {
@@ -207,13 +221,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Home',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Home',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (_currentUsername != null)
+              Text(
+                'Hi, $_currentUsername',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+          ],
         ),
         flexibleSpace: Container(
           decoration: const BoxDecoration(

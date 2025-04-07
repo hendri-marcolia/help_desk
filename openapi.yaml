@@ -96,6 +96,8 @@ components:
 paths:
   /auth/login:
     post:
+      tags:
+        - Auth
       summary: User login
       requestBody:
         required: true
@@ -112,6 +114,8 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
   /auth/refresh:
     post:
+      tags:
+        - Auth
       summary: Refresh JWT token
       requestBody:
         required: true
@@ -128,6 +132,8 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
   /auth/me:
     get:
+      tags:
+        - Auth
       summary: Get current user info
       security:
         - BearerAuth: []
@@ -140,6 +146,8 @@ paths:
                 $ref: '#/components/schemas/UserProfile'
   /auth/fcm:
     post:
+      tags:
+        - Auth
       summary: Register device FCM token
       security:
         - BearerAuth: []
@@ -158,6 +166,8 @@ paths:
           description: Success
   /tickets:
     get:
+      tags:
+        - Tickets
       summary: List tickets
       security:
         - BearerAuth: []
@@ -170,6 +180,8 @@ paths:
                 $ref: '#/components/schemas/TicketList'
   /tickets/create:
     post:
+      tags:
+        - Tickets
       summary: Create new ticket
       security:
         - BearerAuth: []
@@ -198,6 +210,8 @@ paths:
                 $ref: '#/components/schemas/Ticket'
   /tickets/{ticketId}:
     get:
+      tags:
+        - Tickets
       summary: Get ticket details
       security:
         - BearerAuth: []
@@ -215,6 +229,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Ticket'
     patch:
+      tags:
+        - Tickets
       summary: Update ticket info
       security:
         - BearerAuth: []
@@ -246,6 +262,8 @@ paths:
                 $ref: '#/components/schemas/Ticket'
   /tickets/{ticketId}/reply:
     post:
+      tags:
+        - Tickets
       summary: Post reply to ticket
       security:
         - BearerAuth: []
@@ -274,6 +292,8 @@ paths:
                 $ref: '#/components/schemas/Ticket'
   /tickets/{ticketId}/solution:
     patch:
+      tags:
+        - Tickets
       summary: Update ticket solution
       security:
         - BearerAuth: []
