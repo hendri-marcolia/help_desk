@@ -77,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await _dio.post(
-        '$API_HOST/auth/login',
+        useCode ? '$API_HOST/auth/login-code' : '$API_HOST/auth/login',
         data: useCode
             ? {'code': _codeController.text}
             : {

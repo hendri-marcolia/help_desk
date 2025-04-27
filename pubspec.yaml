@@ -46,6 +46,7 @@ dependencies:
   flutter_local_notifications: ^19.0.0 # For local notifications
   flutter_native_splash: ^2.2.19
   permission_handler: ^11.2.0 # For permission handling
+  flutter_markdown: ^0.7.7
 
 dev_dependencies:
   flutter_test:

@@ -7,6 +7,7 @@ import 'utils/common_utils.dart';
 import 'package:help_desk/config.dart';
 import 'dio_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'utils/logger.dart';
 
 class TicketDetailsScreen extends StatefulWidget {
@@ -602,6 +603,73 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
                                               ),
                                             ],
                                           ),
+                                          const SizedBox(height: 24),
+                                          if (_ticketDetails?['ai_request_in_progress'] != null)
+                                            Container(
+                                              padding: const EdgeInsets.all(12.0),
+                                              margin: const EdgeInsets.only(bottom: 16.0),
+                                              decoration: BoxDecoration(
+                                                color: Colors.lightBlue.withOpacity(0.2), // Highlight selected answer
+                                                borderRadius: BorderRadius.circular(8.0),
+                                                border: Border.all(color: Colors.lightBlue, width: 2.0) // Add border for selected answer
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.mark_email_read, color: Colors.grey),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        const Text(
+                                                          'Requesting AI Feedback... Might take around 10 - 20 seconds',
+                                                          style: TextStyle(color: Colors.grey),
+                                                        ),
+                                                        Text(
+                                                          'Request started at ${formatTimestamp(_ticketDetails?['ai_request_in_progress'])}',
+                                                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          if (_ticketDetails?['ai_feedback'] != null)
+                                            Container(
+                                              padding: const EdgeInsets.all(12.0),
+                                              margin: const EdgeInsets.only(bottom: 16.0),
+                                              decoration: BoxDecoration(
+                                                color: Colors.lightBlue.withOpacity(0.2), // Highlight selected answer
+                                                borderRadius: BorderRadius.circular(8.0),
+                                                border: Border.all(color: Colors.lightBlue, width: 2.0) // Add border for selected answer
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.mark_email_read, color: Colors.grey),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        const Text(
+                                                          'AI generated Feedback - Use as a reference only, do not fully depend on it.',
+                                                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                                                        ),
+                                                        MarkdownBody(
+                                                          data: _ticketDetails?['ai_feedback'] ?? '',
+                                                          styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                                                            p: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                                                            strong: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.lightBlue), 
+                                                            listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.lightBlue),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           const SizedBox(height: 24),
                                           const Text(
                                             'Replies:',
