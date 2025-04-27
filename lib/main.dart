@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:help_desk/config.dart';
 import 'package:help_desk/dio_client.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,11 +10,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:help_desk/ticket_details_screen.dart';
-import 'login_screen.dart';
-import 'home_screen.dart';
-import 'app_theme.dart';
+import 'package:help_desk/login_screen.dart';
+import 'package:help_desk/home_screen.dart';
+import 'package:help_desk/app_theme.dart';
 import 'dart:async';
 import 'utils/logger.dart';
+import 'package:help_desk/config.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -116,6 +116,7 @@ class _AuthCheckerState extends State<AuthChecker> {
     // Run device ID and FCM initialization in parallel
     // These are not critical for initial rendering
     unawaited(_initializeDeviceIdAndFCM());
+    unawaited(fetchConfig(_dio)); // Fetch config options in the background
   }
 
   // Separate method to run non-critical initializations in parallel

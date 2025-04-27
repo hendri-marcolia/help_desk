@@ -1,5 +1,9 @@
+import 'dart:convert';
+
+import 'utils/logger.dart';
+
 const String API_HOST = "https://YOUR_API_HOST.com/api/v1";
-const List<String> facilityList = [
+List<String> facilityList = [
   "Nursing Home",
   "Assisted Living",
   "Independent Living",
@@ -15,7 +19,7 @@ const List<String> facilityList = [
   "Long-Term Acute Care Hospital",
   "Subacute Rehabilitation Facility",
 ];
-const List<String> categoryList = [
+List<String> categoryList = [
   "General",
   "Urgent",
   "Emergency",
@@ -29,3 +33,24 @@ const List<String> categoryList = [
   "Palliative",
   "End-of-life",
 ];
+
+Future<void> fetchConfig(dio) async {
+  
+  try {
+    final facilityResponse = await dio.get('$API_HOST/auth/settings/facility_options');
+    if (facilityResponse.statusCode == 200) {
+      facilityList = List<String>.from(jsonDecode(facilityResponse.data)['data']['facility']);
+    }
+  } catch (e) {
+    appLogger.e('Failed to fetch facility options: $e');
+  }
+
+  try {
+    final categoryResponse = await dio.get('$API_HOST/auth/settings/category_options');
+    if (categoryResponse.statusCode == 200) {
+      categoryList = List<String>.from(jsonDecode(categoryResponse.data)['data']['category']);
+    }
+  } catch (e) {
+    appLogger.e('Failed to fetch category options: $e');
+  }
+}
