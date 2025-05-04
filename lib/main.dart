@@ -1,9 +1,7 @@
 import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:help_desk/config.dart';
 import 'package:help_desk/dio_client.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -12,32 +10,42 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:help_desk/ticket_details_screen.dart';
-import 'login_screen.dart';
-import 'home_screen.dart';
-import 'app_theme.dart';
+import 'package:help_desk/login_screen.dart';
+import 'package:help_desk/home_screen.dart';
+import 'package:help_desk/app_theme.dart';
 import 'dart:async';
+import 'utils/logger.dart';
+import 'package:help_desk/config.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // Helper function for unawaited futures
 void unawaited(Future<void> future) {}
 
 /// Top-level function to handle background messages
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling a background message: ${message.messageId}');
+  appLogger.d('Received background FCM message with ID: ${message.messageId}');
   // Add your background message handling logic here
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Permission.notification.isDenied.then((value) {
-        if (value) {
-          Permission.notification.request();
-        }
-      });
-      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  appLogger.i('App starting');
+  if (await Permission.notification.isDenied) {
+    await Permission.notification.request();
+  }
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await Firebase.initializeApp();
 
   // Register the background message handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  DioClient.onForceLogout = () {
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  };
 
   runApp(const MyApp());
 }
@@ -48,12 +56,25 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Help Desk App',
       theme: AppTheme.lightTheme,
-      home: const AuthChecker(), // Use AuthChecker to determine the initial screen
+      home: const AuthChecker(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/home': (context) => const HomeScreen(),
+      },
+      onGenerateRoute: (settings) {
+        if (settings.name == '/ticketDetails') {
+          final args = settings.arguments as Map<String, dynamic>?;
+          final ticketId = args?['ticketId'] as String?;
+          if (ticketId != null) {
+            return MaterialPageRoute(
+              builder: (context) => TicketDetailsScreen(ticketId: ticketId),
+            );
+          }
+        }
+        return null;
       },
     );
   }
@@ -77,6 +98,7 @@ class _AuthCheckerState extends State<AuthChecker> {
   @override
   void initState() {
     super.initState();
+    appLogger.i('AuthChecker initState');
 
     // Delay initialization until after the widget tree is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,6 +116,7 @@ class _AuthCheckerState extends State<AuthChecker> {
     // Run device ID and FCM initialization in parallel
     // These are not critical for initial rendering
     unawaited(_initializeDeviceIdAndFCM());
+    unawaited(fetchConfig(_dio)); // Fetch config options in the background
   }
 
   // Separate method to run non-critical initializations in parallel
@@ -114,7 +137,8 @@ class _AuthCheckerState extends State<AuthChecker> {
         await _initializeFCM();
       }
     } catch (e) {
-      print('Error in background initialization: $e');
+      appLogger.e('Error during device ID and FCM background initialization: $e');
+      // TODO: Handle background initialization errors more gracefully
     }
   }
 
@@ -146,7 +170,8 @@ class _AuthCheckerState extends State<AuthChecker> {
         _handleNotificationNavigation(initialMessage);
       }
     } catch (e) {
-      print('Error initializing FCM: $e');
+      appLogger.e('Error during FCM initialization: $e');
+      // TODO: Handle FCM initialization errors more gracefully
     }
   }
 
@@ -167,10 +192,11 @@ class _AuthCheckerState extends State<AuthChecker> {
             'fcm_token': fcmToken,
           },
         );
-        print('FCM token sent to server successfully.');
+        appLogger.d('Successfully sent FCM token to server.');
       }
     } catch (e) {
-      print('Failed to send FCM token to server: $e');
+      appLogger.e('Error sending FCM token to server: $e');
+      // TODO: Retry sending FCM token or notify user
     }
   }
 
@@ -178,12 +204,9 @@ class _AuthCheckerState extends State<AuthChecker> {
     if (message.data['event'] == 'ticket_update') {
       final ticketId = message.data['ticket_id'];
       if (ticketId != null && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => TicketDetailsScreen(
-              ticketId: ticketId,
-            ),
-          ),
+        Navigator.of(context).pushNamed(
+          '/ticketDetails',
+          arguments: {'ticketId': ticketId},
         );
       }
     }
@@ -197,7 +220,8 @@ class _AuthCheckerState extends State<AuthChecker> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error checking auth status: $e');
+      appLogger.e('Error during auth token check: $e');
+      // TODO: Show error message to user
       setState(() {
         _isLoading = false;
       });
@@ -219,7 +243,7 @@ class _AuthCheckerState extends State<AuthChecker> {
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         if (response.payload != null) {
-          print('Notification payload: ${response.payload}');
+          appLogger.d('Received notification payload: ${response.payload}');
           _handleNotificationTap(response.payload!);
         }
       },
@@ -239,7 +263,8 @@ class _AuthCheckerState extends State<AuthChecker> {
         NotificationDetails(android: androidPlatformChannelSpecifics);
 
     flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000, // Unique Notification ID based on timestamp
+      // Notification ID generated from current timestamp in seconds
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
       notification.title, // Notification title
       notification.body, // Notification body
       platformChannelSpecifics,
@@ -249,7 +274,7 @@ class _AuthCheckerState extends State<AuthChecker> {
 
   void _handleNotificationTap(String payload) {
     // Handle the notification tap here
-    print('Notification tapped with payload: $payload');
+    appLogger.d('User tapped notification with payload: $payload');
     // Parse the payload as JSON
     try {
       final Map<String, dynamic> data = jsonDecode(payload);
@@ -258,17 +283,14 @@ class _AuthCheckerState extends State<AuthChecker> {
       if (data['event'] == 'ticket_update') {
       final ticketId = data['ticket_id'];
       if (ticketId != null && mounted) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => TicketDetailsScreen(
-              ticketId: ticketId,
-            ),
-          ),
+        Navigator.of(context).pushNamed(
+          '/ticketDetails',
+          arguments: {'ticketId': ticketId},
         );
       }
       }
     } catch (e) {
-      print('Error parsing notification payload: $e');
+      appLogger.e('Error parsing notification payload JSON: $e');
     }
   }
 
