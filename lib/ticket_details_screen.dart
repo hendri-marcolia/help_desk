@@ -97,6 +97,7 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
             'message': reply['reply_text']?.toString() ?? '',
             'replyId': replyId,
             'parentReplyId': reply['parent_reply_id']?.toString() ?? '',
+            'ai_feedback': reply['ai_feedback']?.toString() ?? '',
             'timestamp': reply['created_at']?.toString() ?? '',
           };
         }),
@@ -440,6 +441,40 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
                         reply['message']!,
                         style: const TextStyle(fontSize: 14, color: Colors.white70),
                       ),
+                      if (reply.containsKey('ai_feedback') && reply['ai_feedback'] != "")
+                        ExpansionTile(
+                          title: const Text(
+                            'AI Analysis',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                          collapsedTextColor: Colors.grey,
+                          textColor: Colors.grey,
+                          initiallyExpanded: true,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 8.0, left: 12.0, right: 12.0, bottom: 12.0),
+                              padding: const EdgeInsets.all(12.0),
+                              decoration: BoxDecoration(
+                                color: Colors.lightBlue.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8.0),
+                                border: Border.all(color: Colors.lightBlue, width: 2.0),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  MarkdownBody(
+                                    data: reply['ai_feedback']!,
+                                    styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                                      p: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                                      strong: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.lightBlue),
+                                      listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.lightBlue),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       if (reply['replyId'] == _solutionReplyId)
                         const Padding(
                           padding: EdgeInsets.only(top: 8.0),
