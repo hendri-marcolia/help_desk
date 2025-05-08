@@ -244,13 +244,13 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
     }
   }
 
-  Future<void> _markAsSolution(String replyId) async {
+  Future<void> _markAsSolution(String replyId, { bool isAiFeedback = false }) async {
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      final data = {'reply_id': replyId};
+      final data = {'reply_id': replyId, 'is_ai_feedback': isAiFeedback};
 
       final response = await _dio.patch(
         '$API_HOST/tickets/${widget.ticketId}/solution',
@@ -281,12 +281,12 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
     }
   }
 
-  Future<void> _confirmMarkAsSolution(String replyId) async {
+  Future<void> _confirmMarkAsSolution(String replyId, { bool isAiFeedback = false }) async {
     final shouldMark = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Mark as Solution'),
-        content: const Text('Are you sure you want to mark this reply as the solution?'),
+        content: Text('Are you sure you want to mark this ${isAiFeedback ? "AI feedback" : "reply"} as the solution?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -301,7 +301,7 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
     );
 
     if (shouldMark == true) {
-      _markAsSolution(replyId);
+      _markAsSolution(replyId, isAiFeedback: isAiFeedback);
     }
   }
 
@@ -421,11 +421,11 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
                 child: Container(
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
-                    color: reply['replyId'] == _solutionReplyId
+                    color: reply['replyId'] == _solutionReplyId && _ticketDetails?['is_solved_by_ai'] == false
                         ? Colors.green.withOpacity(0.2) // Highlight selected answer
                         : Colors.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8.0),
-                    border: reply['replyId'] == _solutionReplyId
+                    border: reply['replyId'] == _solutionReplyId && _ticketDetails?['is_solved_by_ai'] == false
                         ? Border.all(color: Colors.green, width: 2.0) // Add border for selected answer
                         : null,
                   ),
@@ -445,19 +445,23 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
                         ExpansionTile(
                           title: const Text(
                             'AI Analysis',
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(color: Colors.lightBlue),
                           ),
-                          collapsedTextColor: Colors.grey,
-                          textColor: Colors.grey,
-                          initiallyExpanded: true,
+                          collapsedTextColor: Colors.lightBlue,
+                          textColor: Colors.lightBlue,
+                          initiallyExpanded: _ticketDetails?['solution_reply_id'] == reply['replyId'],
                           children: [
                             Container(
                               margin: const EdgeInsets.only(top: 8.0, left: 12.0, right: 12.0, bottom: 12.0),
                               padding: const EdgeInsets.all(12.0),
                               decoration: BoxDecoration(
-                                color: Colors.lightBlue.withOpacity(0.2),
+                                color: reply['replyId'] == _solutionReplyId && _ticketDetails?['is_solved_by_ai'] == true
+                                  ? Colors.green.withOpacity(0.2) // Highlight selected answer
+                                  : Colors.lightBlue.withOpacity(0.2), // Highlight selected answer
                                 borderRadius: BorderRadius.circular(8.0),
-                                border: Border.all(color: Colors.lightBlue, width: 2.0),
+                                border: reply['replyId'] == _solutionReplyId && _ticketDetails?['is_solved_by_ai'] == true
+                        ? Border.all(color: Colors.green, width: 2.0) // Add border for selected answer
+                        : Border.all(color: Colors.lightBlue, width: 2.0),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,20 +474,36 @@ class _TicketDetailsScreenState extends State<TicketDetailsScreen> with Automati
                                       listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.lightBlue),
                                     ),
                                   ),
-                                ],
+                                  if ((_ticketDetails?['created_by'] == _currentUserId || _currentUserRole == 'admin') &&  _ticketDetails?['solution_reply_id'] == null || _ticketDetails?['solution_reply_id'] == '')
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton(
+                                        onPressed: () => _confirmMarkAsSolution(reply['replyId']!, isAiFeedback: true), // Use confirmation dialog
+                                        child: const Text(
+                                          'Mark AI Feedback as Solution',
+                                          style: TextStyle(color: Colors.blueAccent),
+                                        ),
+                                      ),
+                                    )
+                                  else Align(
+                                    alignment: Alignment.centerRight,
+                                    child: SizedBox.shrink(), // Keeps the layout but hides the button
+                                  ),
+                                ]
                               ),
                             ),
                           ],
                         ),
                       if (reply['replyId'] == _solutionReplyId)
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.only(top: 8.0),
+                          // Highlight selected answer, let the user know if it's from AI or not
                           child: Text(
-                            'Selected Answer',
+                            'Selected Answer ${_ticketDetails?['is_solved_by_ai'] == true ? ' by AI' : ''}',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
-                          ),
+                          )
                         ),
-                      if ((_ticketDetails?['created_by'] == _currentUserId || _currentUserRole == 'admin') && _ticketDetails?['solution_reply_id']  == null)
+                      if ((_ticketDetails?['created_by'] == _currentUserId || _currentUserRole == 'admin') &&  _ticketDetails?['solution_reply_id'] == null || _ticketDetails?['solution_reply_id'] == '')
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
